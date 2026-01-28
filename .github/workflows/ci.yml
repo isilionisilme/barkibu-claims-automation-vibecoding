@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+  push:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    strategy:
+      # Fail-fast: stop all jobs if one fails
+      fail-fast: true
+      matrix:
+        python-version: ["3.10"]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Run unit tests
+        run: |
+          # Fail-fast: exit on first error
+          pytest tests/unit/ --maxfail=1 --exitfirst -v
+        env:
+          PYTHONPATH: ${{ github.workspace }}/backend
+      
+      - name: Run regression tests
+        run: |
+          # Fail-fast: exit on first error
+          pytest tests/regression/ --maxfail=1 --exitfirst -v
+        env:
+          PYTHONPATH: ${{ github.workspace }}/backend
+      
+      - name: Test summary
+        if: always()
+        run: |
+          echo "Test run completed"
+          echo "Check logs above for any failures"
+
+  frontend-check:
+    name: Frontend Check
+    runs-on: ubuntu-latest
+    
+    strategy:
+      fail-fast: true
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+      
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
+      
+      - name: Frontend check summary
+        if: always()
+        run: |
+          echo "Frontend check completed"
